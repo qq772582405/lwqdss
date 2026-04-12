@@ -1,11 +1,12 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 :root {
-  --background: #f8efe5;
-  --foreground: #4f3929;
-  --muted-foreground: #846d5b;
-  --accent-color: #c56a25;
-  --line-color: rgba(213, 158, 112, 0.28);
+  --background: #f3eee7;
+  --foreground: #231812;
+  --muted-foreground: #746861;
+  --accent-color: #9f6841;
+  --accent-soft: #b58461;
+  --line-color: rgba(35, 24, 18, 0.1);
 }
 
 @theme inline {
@@ -21,18 +22,19 @@
 
 html {
   background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.82), transparent 38%),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.92), transparent 36%),
     linear-gradient(var(--background), var(--background));
 }
 
 body {
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-geist-sans), "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
   background:
-    linear-gradient(rgba(221, 196, 170, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(221, 196, 170, 0.18) 1px, transparent 1px),
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.92), rgba(248, 239, 229, 0.96) 40%, rgba(243, 233, 220, 0.98) 100%);
-  background-size: 48px 48px, 48px 48px, auto;
+    linear-gradient(rgba(34, 24, 18, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 24, 18, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.96), rgba(245, 239, 231, 0.97) 32%, rgba(239, 232, 223, 0.98) 100%);
+  background-size: 46px 46px, 46px 46px, auto;
+  min-height: 100vh;
 }
 
 a {
@@ -45,5 +47,5 @@ button {
 }
 
 ::selection {
-  background: rgba(197, 106, 37, 0.16);
+  background: rgba(159, 104, 65, 0.16);
 }

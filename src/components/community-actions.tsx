@@ -23,12 +23,12 @@ export function CommunityActions() {
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-3">
-      <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:justify-center">
+    <div className="flex w-full flex-col items-center gap-4">
+      <div className="grid w-full gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={handleJoinGroup}
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50/90 px-5 py-3 text-sm font-semibold text-emerald-900 shadow-[0_14px_30px_rgba(9,126,105,0.14)] transition hover:-translate-y-0.5 hover:bg-emerald-100"
+          className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-emerald-300/70 bg-[linear-gradient(135deg,rgba(234,252,247,0.98),rgba(221,245,239,0.94))] px-5 py-3 text-sm font-semibold text-emerald-950 shadow-[0_18px_40px_rgba(10,118,100,0.12)] transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-[0_24px_45px_rgba(10,118,100,0.16)]"
         >
           QQ群 {QQ_GROUP_ID}
         </button>
@@ -36,12 +36,12 @@ export function CommunityActions() {
           href={SHOP_URL}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-[color:var(--line-color)] bg-white/88 px-5 py-3 text-sm font-semibold text-[color:var(--foreground)] shadow-[0_14px_32px_rgba(194,106,37,0.12)] transition hover:-translate-y-0.5 hover:border-[color:var(--accent-color)]"
+          className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(246,241,234,0.88))] px-5 py-3 text-sm font-semibold text-[color:var(--foreground)] shadow-[0_18px_40px_rgba(27,19,13,0.08)] transition hover:-translate-y-0.5 hover:border-[color:var(--accent-color)] hover:shadow-[0_24px_45px_rgba(27,19,13,0.12)]"
         >
           低价AI小店
         </a>
       </div>
-      <p className="max-w-2xl text-center text-sm text-[color:var(--muted-foreground)]">
+      <p className="max-w-2xl text-center text-sm leading-7 text-[color:var(--muted-foreground)]">
         {notice || SHOP_PROMPT}
       </p>
     </div>

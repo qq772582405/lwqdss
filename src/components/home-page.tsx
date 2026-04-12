@@ -1,86 +1,110 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import { CommunityActions } from "@/components/community-actions";
 import { RedeemForm } from "@/components/redeem-form";
 import { ANNOUNCEMENT_TEXT } from "@/lib/site-content";
 
-function FeatureBadge({ eyebrow, title }: { eyebrow: string; title: string }) {
+function BrandStrip() {
   return (
-    <div className="rounded-[30px] border border-[color:var(--line-color)] bg-white/80 px-5 py-4 text-center shadow-[0_18px_40px_rgba(194,106,37,0.08)] sm:min-w-52">
-      <p className="text-sm text-[color:var(--muted-foreground)]">{eyebrow}</p>
-      <p className="mt-2 text-2xl font-semibold text-[color:var(--foreground)]">{title}</p>
+    <div className="inline-flex items-center gap-3 rounded-full border border-[color:var(--line-color)] bg-white/85 px-4 py-3 shadow-[0_16px_45px_rgba(27,19,13,0.06)] backdrop-blur">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.96)]">
+        <Image
+          src="/brand-mark.svg"
+          alt="低价 AI 实验室"
+          width={28}
+          height={28}
+          className="h-7 w-7 object-contain"
+          priority
+        />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[color:var(--muted-foreground)]">
+          Redeem Lab
+        </p>
+        <p className="mt-1 text-base font-semibold text-[color:var(--foreground)]">低价 AI 实验室</p>
+      </div>
     </div>
   );
 }
 
-function BrandMark() {
+function TrustRail() {
+  const items = ["ChatGPT Team", "自助兑换", "结果即时反馈"];
+
   return (
-    <div className="rounded-[36px] border border-white/75 bg-white p-4 shadow-[0_28px_70px_rgba(36,36,36,0.12)]">
-      <Image
-        src="/brand-mark.svg"
-        alt="OpenAI 风格图标"
-        width={112}
-        height={112}
-        className="h-24 w-24 object-contain sm:h-28 sm:w-28"
-        priority
-      />
+    <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-[color:var(--muted-foreground)]">
+      {items.map((item) => (
+        <span
+          key={item}
+          className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line-color)] bg-white/72 px-4 py-2 shadow-[0_12px_30px_rgba(27,19,13,0.04)]"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent-soft)]" />
+          {item}
+        </span>
+      ))}
     </div>
+  );
+}
+
+function InfoCard({
+  label,
+  title,
+  body,
+}: {
+  label: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <article className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(250,247,242,0.84))] p-6 shadow-[0_22px_55px_rgba(27,19,13,0.06)] backdrop-blur">
+      <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        {label}
+      </span>
+      <h2 className="mt-6 text-3xl font-semibold leading-tight text-[color:var(--foreground)]">{title}</h2>
+      <p className="mt-5 text-base leading-8 text-[color:var(--muted-foreground)]">{body}</p>
+    </article>
   );
 }
 
 export function HomePage() {
   return (
-    <main className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col gap-7 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-      <section className="rounded-[42px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(255,248,241,0.82))] px-6 py-8 shadow-[0_30px_90px_rgba(164,118,76,0.14)] backdrop-blur sm:px-10 sm:py-10 lg:px-14">
-        <div className="flex flex-col items-center gap-6 lg:flex-row lg:justify-center lg:gap-8">
-          <FeatureBadge eyebrow="ChatGPT Team" title="官方直连" />
-          <BrandMark />
-          <FeatureBadge eyebrow="当前卡位" title="库存充足" />
-        </div>
-        <div className="mt-8 text-center">
-          <p className="text-sm uppercase tracking-[0.45em] text-[color:var(--muted-foreground)]">Redeem Portal</p>
-          <h1 className="mt-4 text-5xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-6xl lg:text-7xl">
-            GPT Team 兑换中心
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[color:var(--muted-foreground)] sm:text-xl">
-            输入邮箱和兑换码，自助提交兑换。
-          </p>
-        </div>
-        <div className="mt-8">
-          <CommunityActions />
+    <main className="mx-auto flex w-full max-w-[1260px] flex-1 flex-col gap-6 px-4 py-4 sm:px-6 lg:gap-8 lg:px-8 lg:py-8">
+      <section className="relative overflow-hidden rounded-[40px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,243,236,0.88))] px-5 py-6 shadow-[0_34px_90px_rgba(27,19,13,0.08)] sm:px-8 sm:py-8 lg:px-12 lg:py-10">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),transparent_45%)]" />
+        <div className="relative flex flex-col items-center text-center">
+          <BrandStrip />
+          <div className="mt-10 max-w-4xl">
+            <p className="text-[11px] font-medium uppercase tracking-[0.6em] text-[color:var(--muted-foreground)] sm:text-xs">
+              Redeem Portal
+            </p>
+            <h1 className="mt-5 text-[clamp(2.9rem,8vw,5.6rem)] font-semibold tracking-[-0.05em] text-[color:var(--foreground)]">
+              GPT Team 兑换中心
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[color:var(--muted-foreground)] sm:text-lg">
+              输入邮箱和兑换码，自助提交兑换。保留必要信息，压缩无效装饰，让购买、提交和查看结果都更直接。
+            </p>
+          </div>
+          <div className="mt-8 w-full max-w-3xl">
+            <CommunityActions />
+          </div>
+          <TrustRail />
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.88fr_1.12fr_0.82fr]">
-        <aside className="rounded-[34px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,246,240,0.86),rgba(255,251,248,0.92))] p-6 shadow-[0_24px_70px_rgba(194,106,37,0.08)] xl:p-8">
-          <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-white/80 px-4 py-1 text-sm text-[color:var(--muted-foreground)]">
-            公告 / 告知买家
-          </span>
-          <h2 className="mt-8 text-3xl font-semibold text-[color:var(--foreground)]">使用须知</h2>
-          <p className="mt-6 text-lg leading-10 text-[color:var(--muted-foreground)]">{ANNOUNCEMENT_TEXT}</p>
-        </aside>
-
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] xl:gap-6">
         <RedeemForm />
 
-        <aside className="rounded-[34px] border border-[rgba(126,173,220,0.28)] bg-[linear-gradient(180deg,rgba(245,248,255,0.92),rgba(240,245,255,0.85))] p-6 shadow-[0_24px_70px_rgba(76,113,164,0.08)] xl:p-8">
-          <div className="rounded-[28px] border border-white/75 bg-white/80 p-5 shadow-[0_16px_40px_rgba(76,113,164,0.08)]">
-            <span className="inline-flex rounded-full border border-[rgba(126,173,220,0.3)] bg-[rgba(242,248,255,0.95)] px-4 py-1 text-sm text-sky-900/75">
-              官方群
-            </span>
-            <h2 className="mt-6 text-3xl font-semibold text-slate-900">获取最新动态</h2>
-            <p className="mt-4 text-lg leading-9 text-slate-600">
-              点击顶部 QQ 群按钮即可自动复制群号并打开加群链接，方便买家及时查看补充通知和兑换提醒。
-            </p>
-          </div>
-          <div className="mt-6 rounded-[28px] border border-white/75 bg-white/80 p-5 shadow-[0_16px_40px_rgba(76,113,164,0.08)]">
-            <span className="inline-flex rounded-full border border-[rgba(126,173,220,0.3)] bg-[rgba(242,248,255,0.95)] px-4 py-1 text-sm text-sky-900/75">
-              更多低价会员
-            </span>
-            <h2 className="mt-6 text-3xl font-semibold text-slate-900">继续挑选更多商品</h2>
-            <p className="mt-4 text-lg leading-9 text-slate-600">
-              如果你还需要 ChatGPT Team、Plus 与 Gemini 相关商品，可直接点击顶部的小店入口继续浏览。
-            </p>
-          </div>
-        </aside>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1">
+          <InfoCard label="公告 / 告知买家" title="使用须知" body={ANNOUNCEMENT_TEXT} />
+          <InfoCard
+            label="最新动态"
+            title="加入群聊获取通知"
+            body="点击上方 QQ 群按钮即可自动复制群号并跳转，方便买家第一时间查看补货、异常与兑换提醒。"
+          />
+          <InfoCard
+            label="低价AI小店"
+            title="继续挑选更多商品"
+            body="如果你还需要 ChatGPT Team、Plus 与 Gemini 相关商品，可直接点击上方的小店入口继续浏览。"
+          />
+        </div>
       </section>
     </main>
   );

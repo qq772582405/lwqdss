@@ -1,4 +1,4 @@
-﻿import {
+import {
   FOLLOW_UP_MESSAGE,
   SUCCESS_MESSAGE,
 } from "@/lib/site-content";
@@ -7,11 +7,13 @@ export const PRIMARY_REDEEM_URL =
   "http://124.221.182.146:8080/api/public/activation-submit";
 export const SECONDARY_REDEEM_URL =
   "https://helloteam.store/redeem/confirm";
+export const TERTIARY_REDEEM_URL =
+  "https://teamxz.store/redeem/confirm";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type RedeemField = "email" | "code";
-type ProviderKey = "primary" | "secondary";
+type ProviderKey = "primary" | "secondary" | "tertiary";
 
 export type RedeemInput = {
   email: string;
@@ -51,6 +53,17 @@ type UpstreamConfig = {
   buildPayload: (input: RedeemInput) => Record<string, unknown>;
 };
 
+type UpstreamResponseData = {
+  detail?: string;
+  success?: boolean;
+  error?: string;
+};
+
+type UpstreamAttempt = {
+  success: boolean;
+  detail?: string;
+};
+
 const UPSTREAMS: Record<ProviderKey, UpstreamConfig> = {
   primary: {
     key: "primary",
@@ -69,6 +82,15 @@ const UPSTREAMS: Record<ProviderKey, UpstreamConfig> = {
       team_id: null,
     }),
   },
+  tertiary: {
+    key: "tertiary",
+    url: TERTIARY_REDEEM_URL,
+    buildPayload: (input) => ({
+      email: input.email,
+      code: input.code,
+      team_id: null,
+    }),
+  },
 };
 
 function normalizeInput(input: RedeemInput): RedeemInput {
@@ -78,9 +100,14 @@ function normalizeInput(input: RedeemInput): RedeemInput {
   };
 }
 
-function resolveUpstream(code: string): UpstreamConfig {
+function resolveUpstreams(code: string): UpstreamConfig[] {
   const normalizedCode = code.trim().toUpperCase();
-  return normalizedCode.startsWith("F4-") ? UPSTREAMS.primary : UPSTREAMS.secondary;
+
+  if (normalizedCode.startsWith("F4-")) {
+    return [UPSTREAMS.primary];
+  }
+
+  return [UPSTREAMS.secondary, UPSTREAMS.tertiary];
 }
 
 export function formatSubmittedAt(date: Date): string {
@@ -140,19 +167,43 @@ function createErrorResult(
   };
 }
 
-async function readUpstreamDetail(response: Response): Promise<string | undefined> {
+async function readUpstreamData(response: Response): Promise<UpstreamResponseData> {
   const contentType = response.headers.get("content-type") ?? "";
 
   try {
     if (contentType.includes("application/json")) {
-      const json = (await response.json()) as { detail?: string; message?: string };
-      return json.detail ?? json.message;
+      const json = (await response.json()) as {
+        detail?: string;
+        message?: string;
+        error?: string | null;
+        success?: boolean;
+      };
+
+      return {
+        detail: json.detail ?? json.message ?? (typeof json.error === "string" ? json.error : undefined),
+        success: json.success,
+        error: typeof json.error === "string" ? json.error : undefined,
+      };
     }
 
     const text = await response.text();
-    return text || undefined;
+
+    return {
+      detail: text || undefined,
+    };
   } catch {
-    return undefined;
+    return {};
+  }
+}
+
+function getUnavailableMessage(provider: ProviderKey): string {
+  switch (provider) {
+    case "secondary":
+      return "helloteam 通道暂时不可用，请稍后再试。";
+    case "tertiary":
+      return "teamxz 通道暂时不可用，请稍后再试。";
+    default:
+      return "外部兑换服务暂时不可用，请稍后重试。";
   }
 }
 
@@ -162,9 +213,11 @@ function normalizeUpstreamMessage(
   provider: ProviderKey,
 ): string {
   if (!detail) {
-    return provider === "secondary"
-      ? "兑换提交失败，请稍后再试。"
-      : "兑换提交未通过，请核对兑换码后重试。";
+    if (provider === "primary") {
+      return "兑换提交未通过，请核对兑换码后重试。";
+    }
+
+    return getUnavailableMessage(provider);
   }
 
   if (
@@ -184,6 +237,45 @@ function normalizeUpstreamMessage(
   return detail;
 }
 
+function combineFallbackFailures(messages: Array<{ key: ProviderKey; message: string }>): string {
+  const secondaryMessage =
+    messages.find((message) => message.key === "secondary")?.message ??
+    getUnavailableMessage("secondary");
+  const tertiaryMessage =
+    messages.find((message) => message.key === "tertiary")?.message ??
+    getUnavailableMessage("tertiary");
+
+  return `当前两个兑换通道都不可用，请稍后重试。helloteam：${secondaryMessage}；teamxz：${tertiaryMessage}`;
+}
+
+async function submitToUpstream(
+  upstream: UpstreamConfig,
+  input: RedeemInput,
+  fetchImpl: typeof fetch,
+  timeoutMs: number,
+): Promise<UpstreamAttempt> {
+  const response = await fetchImpl(upstream.url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(upstream.buildPayload(input)),
+    cache: "no-store",
+    signal:
+      typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(timeoutMs)
+        : undefined,
+  });
+
+  const upstreamData = await readUpstreamData(response);
+  const success = response.ok && upstreamData.success !== false && !upstreamData.error;
+
+  return {
+    success,
+    detail: upstreamData.detail,
+  };
+}
+
 export async function submitRedeemRequest(
   input: RedeemInput,
   dependencies: SubmitDependencies = {},
@@ -192,37 +284,42 @@ export async function submitRedeemRequest(
   const now = dependencies.now ?? new Date();
   const timeoutMs = dependencies.timeoutMs ?? 10000;
   const normalized = normalizeInput(input);
-  const upstream = resolveUpstream(normalized.code);
+  const upstreams = resolveUpstreams(normalized.code);
+  const failures: Array<{ key: ProviderKey; message: string; exception?: boolean }> = [];
 
-  try {
-    const response = await fetchImpl(upstream.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(upstream.buildPayload(normalized)),
-      cache: "no-store",
-      signal:
-        typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
-          ? AbortSignal.timeout(timeoutMs)
-          : undefined,
-    });
+  for (const upstream of upstreams) {
+    try {
+      const result = await submitToUpstream(upstream, normalized, fetchImpl, timeoutMs);
 
-    if (response.ok) {
-      return createSuccessResult(normalized, now);
+      if (result.success) {
+        return createSuccessResult(normalized, now);
+      }
+
+      failures.push({
+        key: upstream.key,
+        message: normalizeUpstreamMessage(result.detail, normalized, upstream.key),
+      });
+    } catch {
+      failures.push({
+        key: upstream.key,
+        message: getUnavailableMessage(upstream.key),
+        exception: true,
+      });
     }
+  }
 
-    const detail = await readUpstreamDetail(response);
-
+  if (upstreams.length > 1) {
     return createErrorResult(normalized, now, {
-      message: normalizeUpstreamMessage(detail, normalized, upstream.key),
-    });
-  } catch {
-    return createErrorResult(normalized, now, {
-      title: "请求异常",
-      message: "外部兑换服务暂时不可用，请稍后重试。",
+      message: combineFallbackFailures(failures),
     });
   }
+
+  const failure = failures[0];
+
+  return createErrorResult(normalized, now, {
+    title: failure?.exception ? "请求异常" : "兑换失败",
+    message: failure?.message ?? "兑换提交未通过，请核对兑换码后重试。",
+  });
 }
 
 export const RESULT_FOLLOW_UP_MESSAGE = FOLLOW_UP_MESSAGE;

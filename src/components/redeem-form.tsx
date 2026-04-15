@@ -1,223 +1,385 @@
-﻿"use client";
+"use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
 import {
-  type RedeemFieldErrors,
-  type RedeemInput,
+  type BatchRedeemInput,
+  type BatchRedeemResultItem,
+  createBatchResultFilename,
+  createBatchResultText,
+  parseBatchRedeemInput,
+  summarizeBatchResults,
+  validateBatchRedeemInput,
+} from "@/lib/batch-redeem";
+import {
   type RedeemResult,
-  RESULT_FOLLOW_UP_MESSAGE,
   formatSubmittedAt,
-  validateRedeemInput,
 } from "@/lib/redeem";
 
-const INITIAL_FORM: RedeemInput = {
-  email: "",
-  code: "",
+const INITIAL_FORM: BatchRedeemInput = {
+  emailsText: "",
+  codesText: "",
 };
 
-type ViewState = "idle" | "submitting" | "success" | "error";
+type ViewState = "idle" | "submitting" | "completed";
 
-function inputClassName(hasError: boolean) {
+function textareaClassName(hasError: boolean) {
   return [
-    "mt-3 w-full rounded-[24px] border bg-[rgba(255,255,255,0.92)] px-5 py-4 text-base text-[color:var(--foreground)] outline-none transition shadow-[0_10px_24px_rgba(27,19,13,0.03)]",
+    "mt-3 min-h-[220px] w-full resize-y rounded-[26px] border bg-[rgba(255,255,255,0.92)] px-5 py-4 text-base leading-8 text-[color:var(--foreground)] outline-none transition shadow-[0_10px_24px_rgba(27,19,13,0.03)]",
     hasError
       ? "border-red-300 shadow-[0_0_0_4px_rgba(239,68,68,0.08)]"
       : "border-[color:var(--line-color)] focus:border-[color:var(--accent-color)] focus:shadow-[0_0_0_4px_rgba(159,104,65,0.08)]",
   ].join(" ");
 }
 
-function ResultCard({ result }: { result: RedeemResult }) {
-  if (result.success) {
-    return (
-      <section className="mt-8 rounded-[28px] border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(239,252,247,0.96),rgba(229,246,240,0.92))] p-6 text-emerald-950 shadow-[0_22px_55px_rgba(11,132,107,0.1)]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-3xl font-semibold tracking-tight">激活成功</h3>
-            <p className="mt-2 text-base text-emerald-800/75">{result.submittedAt}</p>
-          </div>
-          <span className="rounded-full border border-emerald-200 bg-white/90 px-4 py-2 text-sm font-semibold text-emerald-700">
-            已提交
-          </span>
-        </div>
-        <p className="mt-6 text-lg leading-8 text-emerald-900/80">{result.message}</p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-[22px] border border-emerald-200 bg-white/92 px-5 py-4">
-            <p className="text-sm text-emerald-900/55">接收邮箱</p>
-            <p className="mt-3 text-2xl font-semibold break-all">{result.email}</p>
-          </div>
-          <div className="rounded-[22px] border border-emerald-200 bg-white/92 px-5 py-4">
-            <p className="text-sm text-emerald-900/55">提交卡号</p>
-            <p className="mt-3 text-2xl font-semibold break-all">{result.code}</p>
-          </div>
-        </div>
-        <div className="mt-6 text-base leading-8 text-emerald-900/80">
-          <p className="text-sm uppercase tracking-[0.28em] text-emerald-800/55">接下来</p>
-          <p className="mt-3">{RESULT_FOLLOW_UP_MESSAGE}</p>
-        </div>
-      </section>
-    );
-  }
+function statusPillClassName(success: boolean) {
+  return success
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : "border-orange-200 bg-orange-50 text-orange-800";
+}
+
+function BatchResultPanel({
+  results,
+  copyNotice,
+  onCopy,
+  onDownload,
+}: {
+  results: BatchRedeemResultItem[];
+  copyNotice: string;
+  onCopy: () => Promise<void>;
+  onDownload: () => void;
+}) {
+  const summary = summarizeBatchResults(results);
 
   return (
-    <section className="mt-8 rounded-[28px] border border-orange-200/80 bg-[linear-gradient(180deg,rgba(255,247,240,0.96),rgba(249,239,230,0.92))] p-6 text-orange-950 shadow-[0_22px_55px_rgba(159,104,65,0.1)]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="mt-8 rounded-[28px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,243,236,0.9))] p-6 shadow-[0_22px_55px_rgba(27,19,13,0.07)]">
+      <div className="flex flex-col gap-4 border-b border-[color:var(--line-color)] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="text-3xl font-semibold tracking-tight">{result.title}</h3>
-          <p className="mt-2 text-base text-orange-900/70">{result.submittedAt}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.28em] text-[color:var(--muted-foreground)]">
+            Batch Summary
+          </p>
+          <h3 className="mt-3 text-3xl font-semibold tracking-tight text-[color:var(--foreground)]">
+            本次提交 {summary.total} 组
+          </h3>
         </div>
-        <span className="rounded-full border border-orange-200 bg-white/90 px-4 py-2 text-sm font-semibold text-orange-700">
-          请检查后重试
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="rounded-full border border-[color:var(--line-color)] bg-white/92 px-4 py-2 text-sm font-semibold text-[color:var(--foreground)]">
+            成功 {summary.successCount}
+          </span>
+          <span className="rounded-full border border-[color:var(--line-color)] bg-white/92 px-4 py-2 text-sm font-semibold text-[color:var(--foreground)]">
+            失败 {summary.failureCount}
+          </span>
+        </div>
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-[22px] border border-orange-200 bg-white/92 px-5 py-4 sm:col-span-2">
-          <p className="text-sm text-orange-900/55">兑换反馈</p>
-          <p className="mt-3 text-lg leading-8 text-orange-900/80">{result.message}</p>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm leading-7 text-[color:var(--muted-foreground)]">
+          {copyNotice || "结果支持直接复制或下载 TXT，方便转发和留档。"}
         </div>
-        <div className="rounded-[22px] border border-orange-200 bg-white/92 px-5 py-4">
-          <p className="text-sm text-orange-900/55">接收邮箱</p>
-          <p className="mt-3 text-xl font-semibold break-all">{result.email}</p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onCopy}
+            className="inline-flex min-h-12 items-center justify-center rounded-[20px] border border-[color:var(--line-color)] bg-white/94 px-5 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--accent-color)] hover:-translate-y-0.5"
+          >
+            复制结果
+          </button>
+          <button
+            type="button"
+            onClick={onDownload}
+            className="inline-flex min-h-12 items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#9f6841,#c2885c)] px-5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(159,104,65,0.18)] transition hover:-translate-y-0.5"
+          >
+            下载 TXT
+          </button>
         </div>
-        <div className="rounded-[22px] border border-orange-200 bg-white/92 px-5 py-4">
-          <p className="text-sm text-orange-900/55">提交卡号</p>
-          <p className="mt-3 text-xl font-semibold break-all">{result.code}</p>
-        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4">
+        {results.map((result) => (
+          <article
+            key={`${result.index}-${result.email}-${result.code}`}
+            className="rounded-[24px] border border-[color:var(--line-color)] bg-white/92 p-5 shadow-[0_14px_32px_rgba(27,19,13,0.05)]"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--muted-foreground)]">
+                    #{result.index.toString().padStart(2, "0")}
+                  </span>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusPillClassName(result.success)}`}
+                  >
+                    {result.success ? "成功" : "失败"}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-[color:var(--muted-foreground)]">
+                  {result.submittedAt}
+                </p>
+              </div>
+              <div className="max-w-xl text-sm leading-7 text-[color:var(--foreground)] sm:text-right">
+                {result.message}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.78)] px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                  邮箱
+                </p>
+                <p className="mt-3 text-base font-semibold break-all text-[color:var(--foreground)]">
+                  {result.email}
+                </p>
+              </div>
+              <div className="rounded-[20px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.78)] px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
+                  兑换码
+                </p>
+                <p className="mt-3 text-base font-semibold break-all text-[color:var(--foreground)]">
+                  {result.code}
+                </p>
+              </div>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );
 }
 
-export function RedeemForm() {
-  const [form, setForm] = useState<RedeemInput>(INITIAL_FORM);
-  const [errors, setErrors] = useState<RedeemFieldErrors>({});
-  const [result, setResult] = useState<RedeemResult | null>(null);
-  const [viewState, setViewState] = useState<ViewState>("idle");
-
-  const handleChange = (field: keyof RedeemInput) => (event: ChangeEvent<HTMLInputElement>) => {
-    const nextValue = event.target.value;
-    setForm((current) => ({
-      ...current,
-      [field]: nextValue,
-    }));
-    setErrors((current) => ({
-      ...current,
-      [field]: undefined,
-    }));
+function createRequestErrorResult(
+  index: number,
+  email: string,
+  code: string,
+): BatchRedeemResultItem {
+  return {
+    index,
+    success: false,
+    submittedAt: formatSubmittedAt(new Date()),
+    email,
+    code,
+    title: "请求异常",
+    message: "网络连接异常，请稍后重试。",
   };
+}
+
+export function RedeemForm() {
+  const [form, setForm] = useState<BatchRedeemInput>(INITIAL_FORM);
+  const [formError, setFormError] = useState("");
+  const [results, setResults] = useState<BatchRedeemResultItem[]>([]);
+  const [viewState, setViewState] = useState<ViewState>("idle");
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [copyNotice, setCopyNotice] = useState("");
+
+  const preview = parseBatchRedeemInput(form);
+
+  const handleChange =
+    (field: keyof BatchRedeemInput) => (event: ChangeEvent<HTMLTextAreaElement>) => {
+      const nextValue = event.target.value;
+
+      setForm((current) => ({
+        ...current,
+        [field]: nextValue,
+      }));
+      setFormError("");
+      setCopyNotice("");
+    };
 
   const handleReset = () => {
     setForm(INITIAL_FORM);
-    setErrors({});
-    setResult(null);
+    setFormError("");
+    setResults([]);
     setViewState("idle");
+    setProgress({ current: 0, total: 0 });
+    setCopyNotice("");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const validationErrors = validateRedeemInput(form);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      setViewState("error");
-      setResult(null);
+    const validation = validateBatchRedeemInput(form);
+
+    if (validation.error) {
+      setFormError(validation.error);
+      setResults([]);
+      setViewState("idle");
       return;
     }
 
-    setErrors({});
+    setFormError("");
+    setResults([]);
+    setCopyNotice("");
     setViewState("submitting");
+    setProgress({ current: 0, total: validation.entries.length });
+
+    const nextResults: BatchRedeemResultItem[] = [];
+
+    for (const entry of validation.entries) {
+      try {
+        const response = await fetch("/api/redeem", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: entry.email,
+            code: entry.code,
+          }),
+        });
+        const payload = (await response.json()) as RedeemResult;
+
+        nextResults.push({
+          index: entry.index,
+          success: payload.success,
+          submittedAt: payload.submittedAt,
+          email: payload.email,
+          code: payload.code,
+          title: payload.success ? "激活成功" : payload.title,
+          message: payload.message,
+        });
+      } catch {
+        nextResults.push(createRequestErrorResult(entry.index, entry.email, entry.code));
+      }
+
+      setProgress({
+        current: nextResults.length,
+        total: validation.entries.length,
+      });
+    }
+
+    setResults(nextResults);
+    setViewState("completed");
+  };
+
+  const handleCopy = async () => {
+    if (results.length === 0 || !navigator.clipboard?.writeText) {
+      return;
+    }
 
     try {
-      const response = await fetch("/api/redeem", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-      const payload = (await response.json()) as RedeemResult;
-
-      setResult(payload);
-      setViewState(payload.success ? "success" : "error");
+      await navigator.clipboard.writeText(createBatchResultText(results));
+      setCopyNotice("结果已复制到剪贴板");
     } catch {
-      setResult({
-        success: false,
-        submittedAt: formatSubmittedAt(new Date()),
-        email: form.email.trim(),
-        code: form.code.trim(),
-        title: "请求异常",
-        message: "网络连接异常，请稍后重试。",
-      });
-      setViewState("error");
+      setCopyNotice("复制失败，请手动选择结果内容");
     }
   };
+
+  const handleDownload = () => {
+    if (results.length === 0 || typeof window === "undefined") {
+      return;
+    }
+
+    const blob = new Blob([createBatchResultText(results)], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = createBatchResultFilename(new Date());
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const countSummary =
+    preview.emails.length === 0 && preview.codes.length === 0
+      ? "等待输入批量数据"
+      : preview.emails.length === preview.codes.length
+        ? `已识别 ${preview.emails.length} 组`
+        : `邮箱 ${preview.emails.length} 条 / 兑换码 ${preview.codes.length} 条`;
 
   return (
     <section className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,246,241,0.9))] p-6 shadow-[0_26px_70px_rgba(27,19,13,0.08)] backdrop-blur xl:p-8">
       <div className="mb-8 space-y-4">
         <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          填写已注册邮箱和兑换码即可提交
+          邮箱与兑换码按行号一一对应
         </span>
         <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-          ChatGPT Team 激活
+          批量 1 对 1 激活
         </h2>
         <p className="rounded-[22px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
-          请确保填写的是 ChatGPT 注册邮箱，兑换成功后将绑定该账号，提交后请耐心等待邮箱邀请。
+          直接把邮箱列表和兑换码列表粘贴进来即可提交。空行会自动忽略，整理后按行号一一配对，只支持 1 对 1，不会做 1 对多激活。
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-7">
-        <div>
-          <label htmlFor="email" className="text-base font-semibold text-[color:var(--foreground)]">
-            邮箱地址
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={form.email}
-            onChange={handleChange("email")}
-            className={inputClassName(Boolean(errors.email))}
-            placeholder="your@email.com"
-            autoComplete="email"
-          />
-          {errors.email ? (
-            <p className="mt-2 text-sm text-red-500">{errors.email}</p>
-          ) : (
-            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">
-              邀请邮件将发送到该邮箱，如未收到，请等待 10 分钟。
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid gap-5 xl:grid-cols-2">
+          <div>
+            <label
+              htmlFor="emails"
+              className="text-base font-semibold text-[color:var(--foreground)]"
+            >
+              邮箱列表
+            </label>
+            <textarea
+              id="emails"
+              value={form.emailsText}
+              onChange={handleChange("emailsText")}
+              className={textareaClassName(Boolean(formError))}
+              placeholder={"buyer1@example.com\nbuyer2@example.com\nbuyer3@example.com"}
+            />
+            <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
+              一行一个邮箱，支持整段粘贴，空行会自动忽略。
             </p>
-          )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="codes"
+              className="text-base font-semibold text-[color:var(--foreground)]"
+            >
+              兑换码列表
+            </label>
+            <textarea
+              id="codes"
+              value={form.codesText}
+              onChange={handleChange("codesText")}
+              className={textareaClassName(Boolean(formError))}
+              placeholder={"CODE-1111\nCODE-2222\nCODE-3333"}
+            />
+            <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
+              一行一个兑换码，忽略空行后会和邮箱列表按行号一一对应。
+            </p>
+          </div>
         </div>
-        <div>
-          <label htmlFor="code" className="text-base font-semibold text-[color:var(--foreground)]">
-            兑换码
-          </label>
-          <input
-            id="code"
-            type="text"
-            value={form.code}
-            onChange={handleChange("code")}
-            className={inputClassName(Boolean(errors.code))}
-            placeholder="XXXX-XXXX-XXXX-XXXX"
-          />
-          {errors.code ? <p className="mt-2 text-sm text-red-500">{errors.code}</p> : null}
+
+        <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.8)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-semibold text-[color:var(--foreground)]">{countSummary}</div>
+          <div
+            className={`text-sm leading-7 ${formError ? "text-red-500" : "text-[color:var(--muted-foreground)]"}`}
+          >
+            {formError || "数量一致且格式正确时才会整批提交。"}
+          </div>
         </div>
+
         <div className="flex flex-col gap-4 sm:flex-row">
           <button
             type="submit"
             disabled={viewState === "submitting"}
             className="inline-flex min-h-14 flex-1 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#9f6841,#c2885c)] px-6 text-lg font-semibold text-white shadow-[0_18px_40px_rgba(159,104,65,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(159,104,65,0.28)] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {viewState === "submitting" ? "提交中..." : "立即兑换"}
+            {viewState === "submitting"
+              ? `提交中 ${progress.current} / ${progress.total}`
+              : "立即批量兑换"}
           </button>
           <button
             type="button"
             onClick={handleReset}
             className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-[color:var(--line-color)] bg-white/94 px-6 text-lg font-semibold text-[color:var(--muted-foreground)] transition hover:border-[color:var(--accent-color)] hover:text-[color:var(--foreground)] sm:min-w-32"
           >
-            清空
+            清空内容
           </button>
         </div>
       </form>
-      {result ? <ResultCard result={result} /> : null}
+
+      {results.length > 0 ? (
+        <BatchResultPanel
+          results={results}
+          copyNotice={copyNotice}
+          onCopy={handleCopy}
+          onDownload={handleDownload}
+        />
+      ) : null}
     </section>
   );
 }

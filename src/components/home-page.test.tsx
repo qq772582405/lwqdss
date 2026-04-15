@@ -1,8 +1,8 @@
-﻿import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { HomePage } from "@/components/home-page";
 
 describe("HomePage", () => {
-  it("renders the minimal lab hero and removes the old top modules", () => {
+  it("renders the hero, moves the announcement above the tool card, and removes the right-side cards", () => {
     render(<HomePage />);
 
     expect(
@@ -14,11 +14,17 @@ describe("HomePage", () => {
     expect(screen.getByText("ChatGPT Team")).toBeInTheDocument();
     expect(screen.getByText("自助兑换")).toBeInTheDocument();
     expect(screen.getByText("结果即时反馈")).toBeInTheDocument();
+    expect(screen.getByText("使用须知")).toBeInTheDocument();
     expect(
       screen.getByText(/该商品为无质保的激活码，仅用于体验使用/),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/ChatGPT Team、Plus 与 Gemini/)).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Team兑换" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Access Token提取" }),
+    ).toBeInTheDocument();
 
+    expect(screen.queryByText("加入群聊获取通知")).not.toBeInTheDocument();
+    expect(screen.queryByText("继续挑选更多商品")).not.toBeInTheDocument();
     expect(screen.queryByText("官方直连")).not.toBeInTheDocument();
     expect(screen.queryByText("库存充足")).not.toBeInTheDocument();
     expect(screen.queryByText("教程")).not.toBeInTheDocument();

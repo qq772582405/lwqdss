@@ -10,21 +10,20 @@ import {
   summarizeBatchResults,
   validateBatchRedeemInput,
 } from "@/lib/batch-redeem";
-import {
-  type RedeemResult,
-  formatSubmittedAt,
-} from "@/lib/redeem";
+import { extractAccessToken } from "@/lib/access-token";
+import { type RedeemResult, formatSubmittedAt } from "@/lib/redeem";
 
-const INITIAL_FORM: BatchRedeemInput = {
+const INITIAL_BATCH_FORM: BatchRedeemInput = {
   emailsText: "",
   codesText: "",
 };
 
+type ToolMode = "team" | "token";
 type ViewState = "idle" | "submitting" | "completed";
 
-function textareaClassName(hasError: boolean) {
+function textareaClassName(hasError: boolean, minHeight = "min-h-[220px]") {
   return [
-    "mt-3 min-h-[220px] w-full resize-y rounded-[26px] border bg-[rgba(255,255,255,0.92)] px-5 py-4 text-base leading-8 text-[color:var(--foreground)] outline-none transition shadow-[0_10px_24px_rgba(27,19,13,0.03)]",
+    `mt-3 ${minHeight} w-full resize-y rounded-[26px] border bg-[rgba(255,255,255,0.92)] px-5 py-4 text-base leading-8 text-[color:var(--foreground)] outline-none transition shadow-[0_10px_24px_rgba(27,19,13,0.03)]`,
     hasError
       ? "border-red-300 shadow-[0_0_0_4px_rgba(239,68,68,0.08)]"
       : "border-[color:var(--line-color)] focus:border-[color:var(--accent-color)] focus:shadow-[0_0_0_4px_rgba(159,104,65,0.08)]",
@@ -35,6 +34,32 @@ function statusPillClassName(success: boolean) {
   return success
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
     : "border-orange-200 bg-orange-50 text-orange-800";
+}
+
+function ToggleButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        "inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition sm:min-w-36",
+        active
+          ? "bg-[linear-gradient(135deg,#9f6841,#c2885c)] text-white shadow-[0_14px_32px_rgba(159,104,65,0.22)]"
+          : "border border-[color:var(--line-color)] bg-white/92 text-[color:var(--foreground)] hover:border-[color:var(--accent-color)]",
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
 }
 
 function BatchResultPanel({
@@ -162,29 +187,39 @@ function createRequestErrorResult(
 }
 
 export function RedeemForm() {
-  const [form, setForm] = useState<BatchRedeemInput>(INITIAL_FORM);
+  const [toolMode, setToolMode] = useState<ToolMode>("team");
+  const [form, setForm] = useState<BatchRedeemInput>(INITIAL_BATCH_FORM);
   const [formError, setFormError] = useState("");
   const [results, setResults] = useState<BatchRedeemResultItem[]>([]);
   const [viewState, setViewState] = useState<ViewState>("idle");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [copyNotice, setCopyNotice] = useState("");
 
+  const [tokenSource, setTokenSource] = useState("");
+  const [tokenValue, setTokenValue] = useState("");
+  const [tokenError, setTokenError] = useState("");
+  const [tokenNotice, setTokenNotice] = useState("");
+
   const preview = parseBatchRedeemInput(form);
 
-  const handleChange =
+  const handleBatchChange =
     (field: keyof BatchRedeemInput) => (event: ChangeEvent<HTMLTextAreaElement>) => {
-      const nextValue = event.target.value;
-
       setForm((current) => ({
         ...current,
-        [field]: nextValue,
+        [field]: event.target.value,
       }));
       setFormError("");
       setCopyNotice("");
     };
 
-  const handleReset = () => {
-    setForm(INITIAL_FORM);
+  const handleTokenSourceChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    setTokenSource(event.target.value);
+    setTokenError("");
+    setTokenNotice("");
+  };
+
+  const handleTeamReset = () => {
+    setForm(INITIAL_BATCH_FORM);
     setFormError("");
     setResults([]);
     setViewState("idle");
@@ -192,7 +227,14 @@ export function RedeemForm() {
     setCopyNotice("");
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleTokenReset = () => {
+    setTokenSource("");
+    setTokenValue("");
+    setTokenError("");
+    setTokenNotice("");
+  };
+
+  const handleBatchSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const validation = validateBatchRedeemInput(form);
@@ -249,20 +291,20 @@ export function RedeemForm() {
     setViewState("completed");
   };
 
-  const handleCopy = async () => {
+  const handleBatchCopy = async () => {
     if (results.length === 0 || !navigator.clipboard?.writeText) {
       return;
     }
 
     try {
       await navigator.clipboard.writeText(createBatchResultText(results));
-      setCopyNotice("结果已复制到剪贴板");
+      setCopyNotice("结果已复制到剪贴板。");
     } catch {
-      setCopyNotice("复制失败，请手动选择结果内容");
+      setCopyNotice("复制失败，请手动选择结果内容。");
     }
   };
 
-  const handleDownload = () => {
+  const handleBatchDownload = () => {
     if (results.length === 0 || typeof window === "undefined") {
       return;
     }
@@ -281,6 +323,36 @@ export function RedeemForm() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleTokenExtract = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const result = extractAccessToken(tokenSource);
+
+    if ("error" in result) {
+      setTokenValue("");
+      setTokenError(result.error);
+      setTokenNotice("");
+      return;
+    }
+
+    setTokenValue(result.token);
+    setTokenError("");
+    setTokenNotice("已提取 accessToken，可直接复制使用。");
+  };
+
+  const handleTokenCopy = async () => {
+    if (!tokenValue || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(tokenValue);
+      setTokenNotice("Access Token 已复制。");
+    } catch {
+      setTokenNotice("复制失败，请手动选中结果。");
+    }
+  };
+
   const countSummary =
     preview.emails.length === 0 && preview.codes.length === 0
       ? "等待输入批量数据"
@@ -288,98 +360,193 @@ export function RedeemForm() {
         ? `已识别 ${preview.emails.length} 组`
         : `邮箱 ${preview.emails.length} 条 / 兑换码 ${preview.codes.length} 条`;
 
+  const isTeamMode = toolMode === "team";
+
   return (
     <section className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,246,241,0.9))] p-6 shadow-[0_26px_70px_rgba(27,19,13,0.08)] backdrop-blur xl:p-8">
-      <div className="mb-8 space-y-4">
-        <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-          邮箱与兑换码按行号一一对应
-        </span>
-        <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-          批量 1 对 1 激活
-        </h2>
-        <p className="rounded-[22px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
-          直接把邮箱列表和兑换码列表粘贴进来即可提交。空行会自动忽略，整理后按行号一一配对，只支持 1 对 1，不会做 1 对多激活。
-        </p>
+      <div className="flex flex-col gap-6 border-b border-[color:var(--line-color)] pb-8 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-3xl space-y-4">
+          <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            {isTeamMode ? "邮箱与兑换码按行号一一对应" : "只提取 accessToken 字段内容"}
+          </span>
+          <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
+            {isTeamMode ? "批量 1 对 1 激活" : "Access Token 提取"}
+          </h2>
+          <p className="rounded-[22px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
+            {isTeamMode
+              ? "直接把邮箱列表和兑换码列表粘贴进来即可提交。空行会自动忽略，整理后按行号一一配对，只支持 1 对 1，不会做 1 对多激活。"
+              : "把包含 accessToken 字段的完整原始内容粘贴进来，系统会精确提取该字段双引号中的完整内容，方便复制和继续使用。"}
+          </p>
+        </div>
+
+        <div className="inline-flex w-full flex-col gap-3 rounded-[26px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.74)] p-2 shadow-[0_14px_34px_rgba(27,19,13,0.05)] sm:w-auto sm:flex-row">
+          <ToggleButton
+            active={isTeamMode}
+            label="Team兑换"
+            onClick={() => setToolMode("team")}
+          />
+          <ToggleButton
+            active={!isTeamMode}
+            label="Access Token提取"
+            onClick={() => setToolMode("token")}
+          />
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid gap-5 xl:grid-cols-2">
+      {isTeamMode ? (
+        <>
+          <form onSubmit={handleBatchSubmit} className="mt-8 space-y-6">
+            <div className="grid gap-5 xl:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="emails"
+                  className="text-base font-semibold text-[color:var(--foreground)]"
+                >
+                  邮箱列表
+                </label>
+                <textarea
+                  id="emails"
+                  value={form.emailsText}
+                  onChange={handleBatchChange("emailsText")}
+                  className={textareaClassName(Boolean(formError))}
+                  placeholder={"buyer1@example.com\nbuyer2@example.com\nbuyer3@example.com"}
+                />
+                <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
+                  一行一个邮箱，支持整段粘贴，空行会自动忽略。
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="codes"
+                  className="text-base font-semibold text-[color:var(--foreground)]"
+                >
+                  兑换码列表
+                </label>
+                <textarea
+                  id="codes"
+                  value={form.codesText}
+                  onChange={handleBatchChange("codesText")}
+                  className={textareaClassName(Boolean(formError))}
+                  placeholder={"CODE-1111\nCODE-2222\nCODE-3333"}
+                />
+                <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
+                  一行一个兑换码，忽略空行后会和邮箱列表按行号一一对应。
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.8)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm font-semibold text-[color:var(--foreground)]">
+                {countSummary}
+              </div>
+              <div
+                className={`text-sm leading-7 ${formError ? "text-red-500" : "text-[color:var(--muted-foreground)]"}`}
+              >
+                {formError || "数量一致且格式正确时才会整批提交。"}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <button
+                type="submit"
+                disabled={viewState === "submitting"}
+                className="inline-flex min-h-14 flex-1 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#9f6841,#c2885c)] px-6 text-lg font-semibold text-white shadow-[0_18px_40px_rgba(159,104,65,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(159,104,65,0.28)] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {viewState === "submitting"
+                  ? `提交中 ${progress.current} / ${progress.total}`
+                  : "立即批量兑换"}
+              </button>
+              <button
+                type="button"
+                onClick={handleTeamReset}
+                className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-[color:var(--line-color)] bg-white/94 px-6 text-lg font-semibold text-[color:var(--muted-foreground)] transition hover:border-[color:var(--accent-color)] hover:text-[color:var(--foreground)] sm:min-w-32"
+              >
+                清空内容
+              </button>
+            </div>
+          </form>
+
+          {results.length > 0 ? (
+            <BatchResultPanel
+              results={results}
+              copyNotice={copyNotice}
+              onCopy={handleBatchCopy}
+              onDownload={handleBatchDownload}
+            />
+          ) : null}
+        </>
+      ) : (
+        <form onSubmit={handleTokenExtract} className="mt-8 space-y-6">
+          <div className="rounded-[24px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.8)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
+            仅识别 <span className="font-semibold text-[color:var(--foreground)]">accessToken</span>{" "}
+            字段，提取该字段双引号中的完整内容，不会误抓其他相似字段。
+          </div>
+
           <div>
             <label
-              htmlFor="emails"
+              htmlFor="token-source"
               className="text-base font-semibold text-[color:var(--foreground)]"
             >
-              邮箱列表
+              原始内容
             </label>
             <textarea
-              id="emails"
-              value={form.emailsText}
-              onChange={handleChange("emailsText")}
-              className={textareaClassName(Boolean(formError))}
-              placeholder={"buyer1@example.com\nbuyer2@example.com\nbuyer3@example.com"}
+              id="token-source"
+              value={tokenSource}
+              onChange={handleTokenSourceChange}
+              className={textareaClassName(Boolean(tokenError), "min-h-[260px]")}
+              placeholder='{"accessToken":"eyJhbGciOi...","other":"value"}'
             />
-            <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
-              一行一个邮箱，支持整段粘贴，空行会自动忽略。
-            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <button
+              type="submit"
+              className="inline-flex min-h-14 flex-1 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#111827,#334155)] px-6 text-lg font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5"
+            >
+              立即提取
+            </button>
+            <button
+              type="button"
+              onClick={handleTokenReset}
+              className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-[color:var(--line-color)] bg-white/94 px-6 text-lg font-semibold text-[color:var(--muted-foreground)] transition hover:border-[color:var(--accent-color)] hover:text-[color:var(--foreground)] sm:min-w-32"
+            >
+              清空内容
+            </button>
           </div>
 
           <div>
             <label
-              htmlFor="codes"
+              htmlFor="token-result"
               className="text-base font-semibold text-[color:var(--foreground)]"
             >
-              兑换码列表
+              提取结果
             </label>
             <textarea
-              id="codes"
-              value={form.codesText}
-              onChange={handleChange("codesText")}
-              className={textareaClassName(Boolean(formError))}
-              placeholder={"CODE-1111\nCODE-2222\nCODE-3333"}
+              id="token-result"
+              value={tokenValue}
+              readOnly
+              className={textareaClassName(Boolean(tokenError), "min-h-[160px]")}
+              placeholder="提取成功后会在这里显示完整 access token"
             />
-            <p className="mt-2 text-sm leading-7 text-[color:var(--muted-foreground)]">
-              一行一个兑换码，忽略空行后会和邮箱列表按行号一一对应。
-            </p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                className={`text-sm leading-7 ${tokenError ? "text-red-500" : "text-[color:var(--muted-foreground)]"}`}
+              >
+                {tokenError || tokenNotice || "提取完成后可直接复制，不会自动上传任何内容。"}
+              </div>
+              <button
+                type="button"
+                onClick={handleTokenCopy}
+                disabled={!tokenValue}
+                className="inline-flex min-h-12 items-center justify-center rounded-[20px] border border-[color:var(--line-color)] bg-white/94 px-5 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--accent-color)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                复制 Access Token
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-3 rounded-[24px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.8)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm font-semibold text-[color:var(--foreground)]">{countSummary}</div>
-          <div
-            className={`text-sm leading-7 ${formError ? "text-red-500" : "text-[color:var(--muted-foreground)]"}`}
-          >
-            {formError || "数量一致且格式正确时才会整批提交。"}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <button
-            type="submit"
-            disabled={viewState === "submitting"}
-            className="inline-flex min-h-14 flex-1 items-center justify-center rounded-[22px] bg-[linear-gradient(135deg,#9f6841,#c2885c)] px-6 text-lg font-semibold text-white shadow-[0_18px_40px_rgba(159,104,65,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(159,104,65,0.28)] disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {viewState === "submitting"
-              ? `提交中 ${progress.current} / ${progress.total}`
-              : "立即批量兑换"}
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="inline-flex min-h-14 items-center justify-center rounded-[22px] border border-[color:var(--line-color)] bg-white/94 px-6 text-lg font-semibold text-[color:var(--muted-foreground)] transition hover:border-[color:var(--accent-color)] hover:text-[color:var(--foreground)] sm:min-w-32"
-          >
-            清空内容
-          </button>
-        </div>
-      </form>
-
-      {results.length > 0 ? (
-        <BatchResultPanel
-          results={results}
-          copyNotice={copyNotice}
-          onCopy={handleCopy}
-          onDownload={handleDownload}
-        />
-      ) : null}
+        </form>
+      )}
     </section>
   );
 }

@@ -44,23 +44,21 @@ function TrustRail() {
   );
 }
 
-function InfoCard({
-  label,
-  title,
-  body,
-}: {
-  label: string;
-  title: string;
-  body: string;
-}) {
+function AnnouncementBar() {
   return (
-    <article className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(250,247,242,0.84))] p-6 shadow-[0_22px_55px_rgba(27,19,13,0.06)] backdrop-blur">
-      <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-        {label}
-      </span>
-      <h2 className="mt-6 text-3xl font-semibold leading-tight text-[color:var(--foreground)]">{title}</h2>
-      <p className="mt-5 text-base leading-8 text-[color:var(--muted-foreground)]">{body}</p>
-    </article>
+    <section className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,243,236,0.9))] px-6 py-5 shadow-[0_22px_55px_rgba(27,19,13,0.06)] backdrop-blur sm:px-7">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+          <span className="inline-flex w-fit rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            使用须知
+          </span>
+          <p className="text-sm leading-8 text-[color:var(--foreground)] sm:text-base">
+            {ANNOUNCEMENT_TEXT}
+          </p>
+        </div>
+        <span className="hidden h-3 w-3 shrink-0 rounded-full bg-[color:var(--accent-soft)] opacity-70 sm:block" />
+      </div>
+    </section>
   );
 }
 
@@ -79,7 +77,7 @@ export function HomePage() {
               GPT Team 兑换中心
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[color:var(--muted-foreground)] sm:text-lg">
-              输入邮箱和兑换码，自助提交兑换。保留必要信息，压缩无效装饰，让购买、提交和查看结果都更直接。
+              保留高频工具，把 Team 兑换和 Access Token 提取整合到一张主工具卡里，减少跳转，让输入、提取和复制都更直接。
             </p>
           </div>
           <div className="mt-8 w-full max-w-3xl">
@@ -89,23 +87,9 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] xl:gap-6">
-        <RedeemForm />
+      <AnnouncementBar />
 
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1">
-          <InfoCard label="公告 / 告知买家" title="使用须知" body={ANNOUNCEMENT_TEXT} />
-          <InfoCard
-            label="最新动态"
-            title="加入群聊获取通知"
-            body="点击上方 QQ 群按钮即可自动复制群号并跳转，方便买家第一时间查看补货、异常与兑换提醒。"
-          />
-          <InfoCard
-            label="低价AI小店"
-            title="继续挑选更多商品"
-            body="如果你还需要 ChatGPT Team、Plus 与 Gemini 相关商品，可直接点击上方的小店入口继续浏览。"
-          />
-        </div>
-      </section>
+      <RedeemForm />
     </main>
   );
 }

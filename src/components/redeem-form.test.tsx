@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RedeemForm } from "@/components/redeem-form";
 
@@ -22,14 +22,72 @@ describe("RedeemForm", () => {
     });
   });
 
-  it("renders batch textareas instead of the old single inputs", () => {
+  it("defaults to Team兑换 and renders the batch textareas", () => {
     render(<RedeemForm />);
 
+    expect(screen.getByRole("button", { name: "Team兑换" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.getByLabelText("邮箱列表")).toBeInTheDocument();
     expect(screen.getByLabelText("兑换码列表")).toBeInTheDocument();
-    expect(screen.queryByLabelText("邮箱地址")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("兑换码")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "立即批量兑换" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Access Token提取" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("switches to Access Token mode and extracts the token from raw content", async () => {
+    render(<RedeemForm />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Access Token提取" }));
+
+    expect(screen.getByRole("heading", { name: "Access Token 提取" })).toBeInTheDocument();
+    expect(screen.getByLabelText("原始内容")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("原始内容"), {
+      target: {
+        value:
+          '{"accessToken":"eyJhbGciOiJSUzI1NiIsImtpZCI6IkFCQyJ9.payload.signature","foo":"bar"}',
+      },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "立即提取" }));
+
+    expect(screen.getByLabelText("提取结果")).toHaveValue(
+      "eyJhbGciOiJSUzI1NiIsImtpZCI6IkFCQyJ9.payload.signature",
+    );
+  });
+
+  it("shows a clear error when no accessToken field exists", async () => {
+    render(<RedeemForm />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Access Token提取" }));
+    fireEvent.change(screen.getByLabelText("原始内容"), {
+      target: { value: '{"foo":"bar"}' },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "立即提取" }));
+
+    expect(screen.getByText("未找到 accessToken 字段")).toBeInTheDocument();
+  });
+
+  it("copies the extracted token", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<RedeemForm />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Access Token提取" }));
+    fireEvent.change(screen.getByLabelText("原始内容"), {
+      target: { value: '{"accessToken":"eyJhbGciOiJSUzI1NiJ9.payload.signature"}' },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "立即提取" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "复制 Access Token" }),
+    );
+
+    expect(writeText).toHaveBeenCalledWith("eyJhbGciOiJSUzI1NiJ9.payload.signature");
   });
 
   it("blocks batch submission when the two lists do not align", async () => {

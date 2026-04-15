@@ -41,7 +41,15 @@ describe("RedeemForm", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Access Token提取" }));
 
-    expect(screen.getByRole("heading", { name: "Access Token 提取" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Access Token 提取" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("只提取 accessToken 字段内容")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/把包含 accessToken 字段的完整原始内容粘贴进来/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/仅识别 accessToken 字段/)).not.toBeInTheDocument();
+    expect(screen.getByText("原始内容")).toHaveClass("text-center");
     expect(screen.getByLabelText("原始内容")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("原始内容"), {
@@ -52,6 +60,7 @@ describe("RedeemForm", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "立即提取" }));
 
+    expect(screen.getByText("提取结果")).toHaveClass("text-center");
     expect(screen.getByLabelText("提取结果")).toHaveValue(
       "eyJhbGciOiJSUzI1NiIsImtpZCI6IkFCQyJ9.payload.signature",
     );

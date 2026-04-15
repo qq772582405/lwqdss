@@ -76,9 +76,6 @@ export function HomePage() {
             <h1 className="mt-5 text-[clamp(2.9rem,8vw,5.6rem)] font-semibold tracking-[-0.05em] text-[color:var(--foreground)]">
               GPT Team 兑换中心
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[color:var(--muted-foreground)] sm:text-lg">
-              保留高频工具，把 Team 兑换和 Access Token 提取整合到一张主工具卡里，减少跳转，让输入、提取和复制都更直接。
-            </p>
           </div>
           <div className="mt-8 w-full max-w-3xl">
             <CommunityActions />

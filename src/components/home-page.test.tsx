@@ -22,6 +22,9 @@ describe("HomePage", () => {
     expect(
       screen.getByRole("button", { name: "Access Token提取" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/保留高频工具，把 Team 兑换和 Access Token 提取整合到一张主工具卡里/),
+    ).not.toBeInTheDocument();
 
     expect(screen.queryByText("加入群聊获取通知")).not.toBeInTheDocument();
     expect(screen.queryByText("继续挑选更多商品")).not.toBeInTheDocument();

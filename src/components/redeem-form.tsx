@@ -51,7 +51,7 @@ function ToggleButton({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        "inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition sm:min-w-36",
+        "inline-flex min-h-13 items-center justify-center rounded-full px-8 text-base font-semibold transition sm:min-w-52",
         active
           ? "bg-[linear-gradient(135deg,#9f6841,#c2885c)] text-white shadow-[0_14px_32px_rgba(159,104,65,0.22)]"
           : "border border-[color:var(--line-color)] bg-white/92 text-[color:var(--foreground)] hover:border-[color:var(--accent-color)]",
@@ -364,22 +364,8 @@ export function RedeemForm() {
 
   return (
     <section className="rounded-[30px] border border-[color:var(--line-color)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(249,246,241,0.9))] p-6 shadow-[0_26px_70px_rgba(27,19,13,0.08)] backdrop-blur xl:p-8">
-      <div className="flex flex-col gap-6 border-b border-[color:var(--line-color)] pb-8 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl space-y-4">
-          <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
-            {isTeamMode ? "邮箱与兑换码按行号一一对应" : "只提取 accessToken 字段内容"}
-          </span>
-          <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
-            {isTeamMode ? "批量 1 对 1 激活" : "Access Token 提取"}
-          </h2>
-          <p className="rounded-[22px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
-            {isTeamMode
-              ? "直接把邮箱列表和兑换码列表粘贴进来即可提交。空行会自动忽略，整理后按行号一一配对，只支持 1 对 1，不会做 1 对多激活。"
-              : "把包含 accessToken 字段的完整原始内容粘贴进来，系统会精确提取该字段双引号中的完整内容，方便复制和继续使用。"}
-          </p>
-        </div>
-
-        <div className="inline-flex w-full flex-col gap-3 rounded-[26px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.74)] p-2 shadow-[0_14px_34px_rgba(27,19,13,0.05)] sm:w-auto sm:flex-row">
+      <div className="flex justify-center">
+        <div className="inline-flex w-full max-w-[640px] flex-col gap-3 rounded-[28px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.74)] p-2 shadow-[0_14px_34px_rgba(27,19,13,0.05)] sm:flex-row sm:justify-center">
           <ToggleButton
             active={isTeamMode}
             label="Team兑换"
@@ -392,6 +378,20 @@ export function RedeemForm() {
           />
         </div>
       </div>
+
+      {isTeamMode ? (
+        <div className="mt-8 space-y-4 border-b border-[color:var(--line-color)] pb-8">
+          <span className="inline-flex rounded-full border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-4 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+            邮箱与兑换码按行号一一对应
+          </span>
+          <h2 className="text-4xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-5xl">
+            批量 1 对 1 激活
+          </h2>
+          <p className="rounded-[22px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.92)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
+            直接把邮箱列表和兑换码列表粘贴进来即可提交。空行会自动忽略，整理后按行号一一配对，只支持 1 对 1，不会做 1 对多激活。
+          </p>
+        </div>
+      ) : null}
 
       {isTeamMode ? (
         <>
@@ -478,15 +478,10 @@ export function RedeemForm() {
         </>
       ) : (
         <form onSubmit={handleTokenExtract} className="mt-8 space-y-6">
-          <div className="rounded-[24px] border border-[color:var(--line-color)] bg-[rgba(248,245,239,0.8)] px-5 py-4 text-sm leading-7 text-[color:var(--muted-foreground)]">
-            仅识别 <span className="font-semibold text-[color:var(--foreground)]">accessToken</span>{" "}
-            字段，提取该字段双引号中的完整内容，不会误抓其他相似字段。
-          </div>
-
           <div>
             <label
               htmlFor="token-source"
-              className="text-base font-semibold text-[color:var(--foreground)]"
+              className="block text-center text-base font-semibold text-[color:var(--foreground)]"
             >
               原始内容
             </label>
@@ -518,7 +513,7 @@ export function RedeemForm() {
           <div>
             <label
               htmlFor="token-result"
-              className="text-base font-semibold text-[color:var(--foreground)]"
+              className="block text-center text-base font-semibold text-[color:var(--foreground)]"
             >
               提取结果
             </label>

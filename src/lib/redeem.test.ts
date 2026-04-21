@@ -1,4 +1,4 @@
-import {
+﻿import {
   PRIMARY_REDEEM_URL,
   SECONDARY_REDEEM_URL,
   TERTIARY_REDEEM_URL,
@@ -29,7 +29,7 @@ describe("validateRedeemInput", () => {
 });
 
 describe("submitRedeemRequest", () => {
-  it("uses the original upstream when the code starts with F4-", async () => {
+  it("uses the new upstream when the code starts with F4-", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ detail: "ok" }), {
         status: 200,
@@ -58,11 +58,48 @@ describe("submitRedeemRequest", () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          bulk_target_emails: "buyer@example.com",
-          bulk_activation_codes: "F4-C3WDM9GEC2DRYC3",
+          email: "buyer@example.com",
+          code: "F4-C3WDM9GEC2DRYC3",
+          team_id: null,
         }),
       }),
     );
+  });
+
+  it("normalizes used F4 codes returned by the new upstream endpoint", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          detail: "激活码已使用：F4-LOGQL959FFYF7RM",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    const result = await submitRedeemRequest(
+      {
+        email: "772582405@qq.com",
+        code: "F4-LOGQL959FFYF7RM",
+      },
+      {
+        fetchImpl,
+        now: new Date("2026-04-21T17:30:00+08:00"),
+      },
+    );
+
+    expect(result).toEqual({
+      success: false,
+      submittedAt: "2026-04-21 17:30:00",
+      email: "772582405@qq.com",
+      code: "F4-LOGQL959FFYF7RM",
+      title: "兑换码已使用",
+      message: "兑换码已使用：F4-LOGQL959FFYF7RM",
+    });
   });
 
   it("uses the helloteam upstream when the code does not start with F4-", async () => {
@@ -108,7 +145,7 @@ describe("submitRedeemRequest", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            detail: "娌℃湁鍙敤鐨?Team",
+            detail: "暂时没有可用 Team",
           }),
           {
             status: 500,
@@ -244,7 +281,7 @@ describe("submitRedeemRequest", () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          detail: "娌℃湁鍙敤鐨?Team",
+          detail: "暂时没有可用 Team",
         }),
         {
           status: 500,
@@ -283,7 +320,7 @@ describe("submitRedeemRequest", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            detail: "娌℃湁鍙敤鐨?Team",
+            detail: "暂时没有可用 Team",
           }),
           {
             status: 500,

@@ -1,10 +1,10 @@
-import {
+﻿import {
   FOLLOW_UP_MESSAGE,
   SUCCESS_MESSAGE,
 } from "@/lib/site-content";
 
 export const PRIMARY_REDEEM_URL =
-  "http://124.221.182.146:8080/api/public/activation-submit";
+  "http://124.221.182.146:8080/api/public/redeem/confirm";
 export const SECONDARY_REDEEM_URL =
   "https://helloteam.store/redeem/confirm";
 export const TERTIARY_REDEEM_URL =
@@ -69,8 +69,9 @@ const UPSTREAMS: Record<ProviderKey, UpstreamConfig> = {
     key: "primary",
     url: PRIMARY_REDEEM_URL,
     buildPayload: (input) => ({
-      bulk_target_emails: input.email,
-      bulk_activation_codes: input.code,
+      email: input.email,
+      code: input.code,
+      team_id: null,
     }),
   },
   secondary: {
@@ -180,7 +181,10 @@ async function readUpstreamData(response: Response): Promise<UpstreamResponseDat
       };
 
       return {
-        detail: json.detail ?? json.message ?? (typeof json.error === "string" ? json.error : undefined),
+        detail:
+          json.detail ??
+          json.message ??
+          (typeof json.error === "string" ? json.error : undefined),
         success: json.success,
         error: typeof json.error === "string" ? json.error : undefined,
       };
@@ -222,19 +226,27 @@ function normalizeUpstreamMessage(
 
   if (
     provider === "secondary" &&
-    (/Team/i.test(detail) || /鍙敤/.test(detail) || /可用/.test(detail))
+    (/Team/i.test(detail) || /可用/.test(detail))
   ) {
     return "当前没有可用的 Team，请稍后再试。";
   }
 
   if (
     provider === "primary" &&
-    (detail.includes(input.code) || /宸蹭娇鐢/.test(detail) || /已使用/.test(detail))
+    (detail.includes(input.code) || /已使用/.test(detail))
   ) {
     return `兑换码已使用：${input.code}`;
   }
 
   return detail;
+}
+
+function resolveSingleFailureTitle(message: string, exception: boolean | undefined): string {
+  if (message.startsWith("兑换码已使用")) {
+    return "兑换码已使用";
+  }
+
+  return exception ? "请求异常" : "兑换失败";
 }
 
 function combineFallbackFailures(messages: Array<{ key: ProviderKey; message: string }>): string {
@@ -317,7 +329,10 @@ export async function submitRedeemRequest(
   const failure = failures[0];
 
   return createErrorResult(normalized, now, {
-    title: failure?.exception ? "请求异常" : "兑换失败",
+    title: resolveSingleFailureTitle(
+      failure?.message ?? "兑换提交未通过，请核对兑换码后重试。",
+      failure?.exception,
+    ),
     message: failure?.message ?? "兑换提交未通过，请核对兑换码后重试。",
   });
 }
